@@ -1,32 +1,33 @@
 <?xml version="1.0"?>
-<info>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
     <id>open_webui</id>
     <name>Open WebUI</name>
-    <summary>Chat interface for local AI models (Ollama, OpenAI-compatible)</summary>
-    <description><![CDATA[
-Open WebUI is a feature-rich, user-friendly chat interface for interacting with large language models.
+    <summary>AI chat interface with built-in Ollama LLM inference</summary>
+    <description><![CDATA[Open WebUI with Ollama for Nextcloud
+
+A complete AI chat solution bundled as a single Nextcloud ExApp. Includes Open WebUI (chat interface) and Ollama (LLM inference engine) in one container.
 
 **Features:**
 - Beautiful, intuitive chat interface
-- Supports Ollama and OpenAI-compatible APIs
+- Built-in Ollama for local LLM inference (no separate installation needed)
+- Automatic model pulling on first start
 - Conversation history and organization
 - Document upload for RAG (Retrieval Augmented Generation)
 - Model switching during conversations
-- Multi-user support with authentication
-- Customizable system prompts and parameters
-- Export/import conversations
+- Ollama API accessible for other apps (e.g., n8n workflows)
 - Mobile-friendly responsive design
 
-**Connects to:**
-- Ollama ExApp (recommended for local AI)
-- Any OpenAI-compatible API endpoint
-- Hugging Face Text Generation Inference
+**Built-in Models:**
+- Configure OLLAMA_DEFAULT_MODEL to auto-pull a model on first start
+- Supports all Ollama-compatible models (Llama, Mistral, Gemma, etc.)
+- Download additional models through the Open WebUI interface
 
-**Requirements:**
-- Install alongside Ollama ExApp for the best experience
-- Or configure an external OpenAI-compatible API
+**Ollama API:**
+- Other ExApps (like n8n) can access the Ollama API via the proxy
+- Endpoint: /ollama/api/... (e.g., /ollama/api/generate, /ollama/api/chat)
 
-This ExApp runs Open WebUI as a sidecar container managed by Nextcloud's AppAPI.
+This ExApp runs Open WebUI + Ollama as a sidecar container managed by Nextcloud's AppAPI.
     ]]></description>
     <version>1.0.0</version>
     <licence>agpl</licence>
@@ -47,57 +48,48 @@ This ExApp runs Open WebUI as a sidecar container managed by Nextcloud's AppAPI.
         <docker-install>
             <registry>ghcr.io</registry>
             <image>conductionnl/open-webui-nextcloud</image>
-            <image-tag>1.0.0</image-tag>
+            <image-tag>latest</image-tag>
         </docker-install>
 
         <routes>
-            <!-- API endpoints -->
-            <route>
-                <url>^api\/.*</url>
-                <verb>GET,POST,PUT,DELETE,PATCH</verb>
-                <access_level>USER</access_level>
-            </route>
-            <!-- OAuth endpoints -->
-            <route>
-                <url>^oauth\/.*</url>
-                <verb>GET,POST</verb>
-                <access_level>USER</access_level>
-            </route>
-            <!-- Static assets -->
-            <route>
-                <url>^static\/.*</url>
-                <verb>GET</verb>
-                <access_level>USER</access_level>
-            </route>
-            <route>
-                <url>^_app\/.*</url>
-                <verb>GET</verb>
-                <access_level>USER</access_level>
-            </route>
-            <!-- WebSocket for streaming (via HaRP) -->
-            <route>
-                <url>^ws\/.*</url>
-                <verb>GET</verb>
-                <access_level>USER</access_level>
-            </route>
-            <!-- All other routes -->
             <route>
                 <url>.*</url>
-                <verb>GET,POST,PUT,DELETE</verb>
+                <verb>GET,POST,PUT,DELETE,PATCH,OPTIONS</verb>
                 <access_level>USER</access_level>
+                <headers_to_exclude>[]</headers_to_exclude>
             </route>
         </routes>
 
         <environment-variables>
             <variable>
-                <name>OLLAMA_BASE_URL</name>
-                <display-name>Ollama URL</display-name>
-                <description>URL to Ollama API (default: auto-detect from Ollama ExApp)</description>
+                <name>OLLAMA_DEFAULT_MODEL</name>
+                <display-name>Default Model</display-name>
+                <description>Model to auto-pull on first start (e.g., llama3.2:1b, mistral:7b). Leave empty to skip.</description>
+            </variable>
+            <variable>
+                <name>OLLAMA_NUM_PARALLEL</name>
+                <display-name>Parallel Requests</display-name>
+                <description>Number of parallel Ollama requests (default: 1)</description>
+            </variable>
+            <variable>
+                <name>OLLAMA_KEEP_ALIVE</name>
+                <display-name>Model Keep Alive</display-name>
+                <description>How long to keep models loaded in memory (default: 5m, e.g., 15m, 1h)</description>
+            </variable>
+            <variable>
+                <name>OLLAMA_MAX_LOADED_MODELS</name>
+                <display-name>Max Loaded Models</display-name>
+                <description>Maximum number of models to keep loaded simultaneously</description>
+            </variable>
+            <variable>
+                <name>OLLAMA_FLASH_ATTENTION</name>
+                <display-name>Flash Attention</display-name>
+                <description>Enable flash attention for better performance (true/false)</description>
             </variable>
             <variable>
                 <name>OPENAI_API_BASE_URL</name>
                 <display-name>OpenAI-compatible API URL</display-name>
-                <description>Optional: URL to OpenAI-compatible API (e.g., TGI, vLLM)</description>
+                <description>Optional: URL to additional OpenAI-compatible API (e.g., TGI, vLLM)</description>
             </variable>
             <variable>
                 <name>OPENAI_API_KEY</name>

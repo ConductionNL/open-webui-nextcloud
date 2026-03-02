@@ -1,3 +1,2 @@
-fastapi>=0.100.0
-uvicorn>=0.23.0
-httpx>=0.24.0
+nc_py_api[app]>=0.20.0
+httpx==0.28.1

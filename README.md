@@ -1,14 +1,16 @@
-# Open WebUI Nextcloud ExApp
+# Open WebUI + Ollama Nextcloud ExApp
 
-A Nextcloud External Application (ExApp) that integrates [Open WebUI](https://openwebui.com) - a feature-rich chat interface for LLMs - directly into Nextcloud.
+A Nextcloud External Application (ExApp) that bundles [Open WebUI](https://openwebui.com) (chat interface) and [Ollama](https://ollama.com) (LLM inference) into a single container managed by Nextcloud's AppAPI.
 
 ## Features
 
+- **All-in-one AI Chat** - Open WebUI frontend + Ollama backend in a single ExApp
 - **Beautiful Chat Interface** - Modern, intuitive UI for interacting with AI
-- **Multiple Model Support** - Connect to Ollama, OpenAI, or any compatible API
+- **Local LLM Inference** - Run models locally with Ollama (no external API needed)
+- **Auto Model Pull** - Automatically downloads a default model on first start
 - **Conversation History** - Persistent chat history with search
 - **Document Upload** - RAG capabilities with file uploads
-- **Multi-user Support** - Each Nextcloud user gets their own workspace
+- **Ollama API** - Expose Ollama API for other apps (e.g., n8n workflows)
 - **Mobile Friendly** - Responsive design works on all devices
 
 ## Requirements
@@ -16,7 +18,8 @@ A Nextcloud External Application (ExApp) that integrates [Open WebUI](https://op
 - Nextcloud 30 or higher
 - [AppAPI](https://apps.nextcloud.com/apps/app_api) installed and configured
 - Docker with a configured Deploy Daemon (HaRP recommended)
-- [Ollama ExApp](https://github.com/ConductionNL/ollama-nextcloud) (recommended) or external LLM API
+- Sufficient RAM (4GB minimum, 8GB+ recommended for larger models)
+- GPU support optional but recommended for performance
 
 ## Installation
 
@@ -24,9 +27,8 @@ A Nextcloud External Application (ExApp) that integrates [Open WebUI](https://op
 
 1. Install and enable the **AppAPI** app in Nextcloud
 2. Configure a Deploy Daemon
-3. Install the **Ollama ExApp** first (recommended)
-4. Search for "Open WebUI" in the External Apps section
-5. Click Install
+3. Search for "Open WebUI" in the External Apps section
+4. Click Install
 
 ### Manual Installation
 
@@ -43,39 +45,43 @@ occ app_api:app:register \
 
 | Environment Variable | Description | Default |
 |---------------------|-------------|---------|
-| `OLLAMA_BASE_URL` | URL to Ollama API | Auto-detect from Ollama ExApp |
-| `OPENAI_API_BASE_URL` | OpenAI-compatible API URL | Not set |
+| `OLLAMA_DEFAULT_MODEL` | Model to auto-pull on first start | Not set |
+| `OLLAMA_NUM_PARALLEL` | Number of parallel Ollama requests | 1 |
+| `OLLAMA_KEEP_ALIVE` | How long to keep models loaded | 5m |
+| `OLLAMA_MAX_LOADED_MODELS` | Max models loaded simultaneously | 1 |
+| `OLLAMA_FLASH_ATTENTION` | Enable flash attention | false |
+| `OPENAI_API_BASE_URL` | Additional OpenAI-compatible API URL | Not set |
 | `OPENAI_API_KEY` | API key for OpenAI endpoint | Not set |
 | `ENABLE_SIGNUP` | Allow user registration | false |
 
+### Recommended Models
+
+| Model | Size | Best For |
+|-------|------|----------|
+| `llama3.2:1b` | ~1.3 GB | Quick responses, low resource usage |
+| `llama3.2:3b` | ~2.0 GB | Good balance of speed and quality |
+| `mistral:7b` | ~4.1 GB | High quality general purpose |
+| `gemma2:9b` | ~5.4 GB | Strong reasoning and coding |
+
 ## Usage
 
-After installation, access Open WebUI through Nextcloud:
+After installation, Open WebUI appears as a top menu item in Nextcloud.
+
+### Ollama API Access
+
+Other ExApps (like n8n) can access the Ollama API through the proxy:
 
 ```
-https://your-nextcloud/index.php/apps/app_api/proxy/open_webui
+https://your-nextcloud/index.php/apps/app_api/proxy/open_webui/ollama/api/tags
+https://your-nextcloud/index.php/apps/app_api/proxy/open_webui/ollama/api/generate
+https://your-nextcloud/index.php/apps/app_api/proxy/open_webui/ollama/api/chat
 ```
 
-Or use the External Apps section in Nextcloud's admin panel.
+Or connect directly from other containers on the same Docker network:
 
-### First Time Setup
-
-1. Open the WebUI through Nextcloud
-2. Create an admin account (first user becomes admin)
-3. Configure your LLM backend in Settings
-4. Start chatting!
-
-### Connecting to Ollama
-
-If you have the Ollama ExApp installed, Open WebUI will automatically detect and connect to it. No manual configuration needed.
-
-### Connecting to External APIs
-
-To use OpenAI or other compatible APIs:
-
-1. Go to Settings in Open WebUI
-2. Add your API endpoint and key
-3. Select your preferred model
+```
+http://openregister-exapp-openwebui:11434
+```
 
 ## Development
 
@@ -91,10 +97,12 @@ docker build -t open-webui-exapp:dev .
 docker run -it --rm \
     -e APP_ID=open_webui \
     -e APP_SECRET=dev-secret \
+    -e APP_HOST=0.0.0.0 \
+    -e APP_PORT=23000 \
+    -e APP_PERSISTENT_STORAGE=/data \
     -e NEXTCLOUD_URL=http://localhost:8080 \
-    -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
-    -p 9000:9000 \
-    -p 8080:8080 \
+    -e OLLAMA_DEFAULT_MODEL=llama3.2:1b \
+    -p 23000:23000 \
     open-webui-exapp:dev
 ```
 
@@ -102,52 +110,50 @@ docker run -it --rm \
 
 ```bash
 # Health check
-curl http://localhost:9000/heartbeat
+curl http://localhost:23000/heartbeat
 
-# Open WebUI health
-curl http://localhost:9000/health
+# Ollama API (list models)
+curl http://localhost:23000/ollama/api/tags
 ```
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────┐
-│         Nextcloud + AppAPI          │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│   Open WebUI ExApp Container        │
-│  ┌───────────────────────────────┐  │
-│  │  FastAPI Wrapper (port 9000)  │  │
-│  │  - /heartbeat                 │  │
-│  │  - /init                      │  │
-│  │  - /enabled                   │  │
-│  │  - /* (proxy to Open WebUI)   │  │
-│  └───────────────┬───────────────┘  │
-│                  │                  │
-│  ┌───────────────▼───────────────┐  │
-│  │  Open WebUI (port 8080)       │  │
-│  │  ┌─────────────────────────┐  │  │
-│  │  │   SQLite Database       │  │  │
-│  │  │   /data/webui.db        │  │  │
-│  │  └─────────────────────────┘  │  │
-│  └───────────────────────────────┘  │
-└──────────────┬──────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────┐
-│     Ollama ExApp (LLM Backend)      │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│            Nextcloud + AppAPI                    │
+└──────────────────┬──────────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────┐
+│     Open WebUI ExApp Container                   │
+│  ┌───────────────────────────────────────────┐  │
+│  │  FastAPI Wrapper (port 23000)             │  │
+│  │  - /heartbeat, /init, /enabled            │  │
+│  │  - /ollama/* → Ollama API (port 11434)    │  │
+│  │  - /* → Open WebUI (port 8080)            │  │
+│  │  - AppAPIAuthMiddleware                   │  │
+│  │  - Iframe loader JS                       │  │
+│  └──────────┬──────────────┬─────────────────┘  │
+│             │              │                     │
+│  ┌──────────▼──────┐  ┌───▼─────────────────┐  │
+│  │ Ollama (11434)  │  │ Open WebUI (8080)   │  │
+│  │ LLM inference   │  │ Chat interface      │  │
+│  │ Model storage   │  │ User management     │  │
+│  └─────────────────┘  │ Conversation history│  │
+│                        └─────────────────────┘  │
+│                                                  │
+│  /data/                                          │
+│  ├── ollama_models/  (downloaded LLM models)     │
+│  └── ...             (WebUI data, secrets)       │
+└─────────────────────────────────────────────────┘
 ```
 
 ## Integration Stack
 
-For the best experience, install all three ExApps:
+For the best experience, install both ExApps:
 
-1. **Ollama ExApp** - Local LLM inference
-2. **Open WebUI ExApp** - Chat interface (this app)
-3. **n8n ExApp** - Workflow automation with AI
+1. **Open WebUI ExApp** - AI chat + Ollama inference (this app)
+2. **n8n ExApp** - Workflow automation with AI (can use Ollama from this app)
 
 ## License
 
@@ -156,6 +162,6 @@ AGPL-3.0 - See [LICENSE](LICENSE) for details.
 ## Links
 
 - [Open WebUI Documentation](https://docs.openwebui.com)
-- [Open WebUI GitHub](https://github.com/open-webui/open-webui)
+- [Ollama Documentation](https://ollama.com)
 - [Nextcloud AppAPI Documentation](https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/Introduction.html)
 - [Conduction](https://conduction.nl)

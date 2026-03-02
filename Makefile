@@ -1,4 +1,4 @@
-# Open WebUI Nextcloud ExApp - Build System
+# Open WebUI + Ollama Nextcloud ExApp - Build System
 
 REGISTRY ?= ghcr.io/conductionnl
 IMAGE_NAME ?= open-webui-nextcloud
@@ -7,7 +7,7 @@ VERSION ?= 1.0.0
 .PHONY: build push run test clean help
 
 help:
-	@echo "Open WebUI Nextcloud ExApp"
+	@echo "Open WebUI + Ollama Nextcloud ExApp"
 	@echo ""
 	@echo "Usage:"
 	@echo "  make build    - Build Docker image"
@@ -31,18 +31,20 @@ run:
 	docker run -it --rm \
 		-e APP_ID=open_webui \
 		-e APP_SECRET=dev-secret \
+		-e APP_HOST=0.0.0.0 \
+		-e APP_PORT=23000 \
+		-e APP_PERSISTENT_STORAGE=/data \
 		-e NEXTCLOUD_URL=http://host.docker.internal:8080 \
-		-e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
-		-p 9000:9000 \
-		-p 8081:8080 \
+		-e OLLAMA_DEFAULT_MODEL=llama3.2:1b \
+		-p 23000:23000 \
 		$(REGISTRY)/$(IMAGE_NAME):latest
 
 test:
 	@echo "Testing heartbeat endpoint..."
-	@curl -s http://localhost:9000/heartbeat || echo "Container not running"
+	@curl -s http://localhost:23000/heartbeat || echo "Container not running"
 	@echo ""
-	@echo "Testing Open WebUI health..."
-	@curl -s http://localhost:9000/health || echo "Open WebUI not running"
+	@echo "Testing Ollama API..."
+	@curl -s http://localhost:23000/ollama/api/tags || echo "Ollama not running"
 
 clean:
 	-docker rmi $(REGISTRY)/$(IMAGE_NAME):$(VERSION)

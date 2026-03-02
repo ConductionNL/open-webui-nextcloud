@@ -76,14 +76,16 @@ jobs:
           docker run -d --name test-container \
             -e APP_ID=open_webui \
             -e APP_SECRET=test \
+            -e APP_HOST=0.0.0.0 \
+            -e APP_PORT=23000 \
+            -e APP_PERSISTENT_STORAGE=/data \
             -e NEXTCLOUD_URL=http://localhost:8080 \
-            -e OLLAMA_BASE_URL=http://localhost:11434 \
-            -p 9000:9000 \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            -p 23000:23000 \
+            $(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]'):latest
 
           sleep 30
 
-          # Test heartbeat (before init, will return error)
-          curl http://localhost:9000/heartbeat || true
+          # Test heartbeat
+          curl -f http://localhost:23000/heartbeat || exit 1
 
           docker stop test-container

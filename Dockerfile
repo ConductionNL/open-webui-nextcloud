@@ -1,18 +1,16 @@
-# Open WebUI Nextcloud ExApp
-# Combines Open WebUI chat interface with AppAPI lifecycle management
+# Open WebUI + Ollama Nextcloud ExApp
+# Combined chat interface with built-in LLM inference
 
+# Stage 1: Get Ollama binary
+FROM ollama/ollama:latest AS ollama-source
+
+# Stage 2: Build on Open WebUI base
 FROM ghcr.io/open-webui/open-webui:main
 
-# Install additional dependencies for AppAPI wrapper
 USER root
 
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies (Open WebUI already has Python)
-COPY requirements.txt /app/exapp_requirements.txt
-RUN pip install --no-cache-dir -r /app/exapp_requirements.txt
+# Copy Ollama binary from first stage
+COPY --from=ollama-source /bin/ollama /usr/local/bin/ollama
 
 # Install FRP client for HaRP support
 RUN set -ex; \
@@ -30,26 +28,30 @@ RUN set -ex; \
     chmod +x /usr/local/bin/frpc; \
     rm -rf /tmp/frp* /tmp/${FRP_DIR}
 
-# Copy ExApp wrapper
-COPY ex_app /app/ex_app
+# Install Python dependencies for AppAPI wrapper
+# (Open WebUI already has Python + pip)
+COPY requirements.txt /app/exapp_requirements.txt
+RUN pip install --no-cache-dir -r /app/exapp_requirements.txt
+
+# Copy ExApp wrapper and assets
+COPY ex_app/ /app/ex_app/
+COPY img/ /app/ex_app/img/
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Create data directory
 RUN mkdir -p /data
 
 WORKDIR /app
 
-# Expose ports
-EXPOSE 9000 8080
+# Ollama data directory
+VOLUME /data
 
 # Environment defaults
 ENV APP_HOST=0.0.0.0
-ENV APP_PORT=9000
+ENV APP_PORT=23000
 ENV PYTHONUNBUFFERED=1
 ENV WEBUI_AUTH=true
 ENV ENABLE_SIGNUP=false
 
-# Entrypoint script
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["./entrypoint.sh"]
