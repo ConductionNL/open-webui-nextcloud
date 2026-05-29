@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="img/app-store.svg" alt="Open WebUI logo" width="80" height="80">
+</p>
+
 # Open WebUI + Ollama Nextcloud ExApp
 
 A Nextcloud External Application (ExApp) that bundles [Open WebUI](https://openwebui.com) (chat interface) and [Ollama](https://ollama.com) (LLM inference) into a single container managed by Nextcloud's AppAPI.
