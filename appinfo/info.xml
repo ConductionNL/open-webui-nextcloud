@@ -41,7 +41,7 @@ This ExApp runs Open WebUI + Ollama as a sidecar container managed by Nextcloud'
     <repository type="git">https://github.com/ConductionNL/open-webui-nextcloud</repository>
     <screenshot>https://raw.githubusercontent.com/ConductionNL/open-webui-nextcloud/main/screenshot.png</screenshot>
     <dependencies>
-        <nextcloud min-version="30" max-version="33"/>
+        <nextcloud min-version="30" max-version="34"/>
     </dependencies>
 
     <external-app>
