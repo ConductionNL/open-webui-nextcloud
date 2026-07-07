@@ -161,7 +161,7 @@ For the best experience, install both ExApps:
 
 ## License
 
-AGPL-3.0 - See [LICENSE](LICENSE) for details.
+EUPL-1.2 - See [LICENSE](LICENSE) for details.
 
 ## Links
 

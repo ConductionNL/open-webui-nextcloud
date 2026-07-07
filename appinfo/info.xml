@@ -30,7 +30,7 @@ A complete AI chat solution bundled as a single Nextcloud ExApp. Includes Open W
 This ExApp runs Open WebUI + Ollama as a sidecar container managed by Nextcloud's AppAPI.
     ]]></description>
     <version>1.0.0</version>
-    <licence>agpl</licence>
+    <licence>EUPL-1.2</licence>
     <author mail="info@conduction.nl" homepage="https://conduction.nl">Conduction</author>
     <namespace>ExApp_open_webui</namespace>
     <category>tools</category>
